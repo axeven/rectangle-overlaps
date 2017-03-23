@@ -1,0 +1,156 @@
+<html>
+    <head>
+        <style type="text/css">
+            html, body {
+                width:  100%;
+                height: 100%;
+                margin: 0px;
+                padding: 0px;
+            }
+        </style>
+        <script type="text/javascript">
+            // Add rectangle data to container array
+            function addRectangle(container, x, y, w, h, r, g, b) {
+                var id = container.length;
+                container.push({
+                    r: r,
+                    g: g,
+                    b: b,
+                    x: x,
+                    y: y,
+                    w: w,
+                    h: h,
+                    rectangleIds: [id]
+                });
+            }
+            // Repaint the canvar with white and draw the rectangles
+            function draw(rect_data) {
+                var canvas = document.getElementById('my-canvas');
+                var ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#eeeeee';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Draw rectangles
+                for (var i = 0; i < rect_data.length; ++i) {
+                    rect_data[i].forEach(function (el) {
+                        ctx.fillStyle = 'rgb(' + el.r + ',' + el.g + ',' + el.b + ')';
+                        ctx.fillRect(el.x, el.y, el.w, el.h);
+                    });
+                }
+            }
+            // Create overlap rectangle of two rectangles
+            function createOverlap(a, b) {
+                return {
+                    x: Math.max(a.x, b.x),
+                    y: Math.max(a.y, b.y),
+                    w: Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x),
+                    h: Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y),
+                    r: Math.min(255, a.r + b.r),
+                    g: Math.min(255, a.g + b.g),
+                    b: Math.min(255, a.b + b.b),
+                    rectangleIds: a.rectangleIds.concat(b.rectangleIds)
+                };
+            }
+            // Compute overlap rectangles
+            function computeOverlaps(rect_data) {
+                // Remove overlap rectangles computed before
+                rect_data.splice(1);
+                //
+                while (true) {
+                    // Overlap is computed between the base rectangle (rect_data[0])
+                    // and the overlap rengtangles containing the highest number of
+                    // overlaping rectangles (rect_data[rect_data.length - 1]).
+                    var last_ovlap = rect_data[rect_data.length - 1];
+                    var overlaps_next = [];
+                    for (var i = 0; i < last_ovlap.length; ++i) {
+                        var a = last_ovlap[i];
+                        for (var j = 0; j < rect_data[0].length; ++j) {
+                            if (a.rectangleIds.indexOf(j) === -1) {
+                                var b = rect_data[0][j];
+                                if (a.x + a.w > b.x && a.x < b.x + b.w
+                                        && a.y + a.h > b.y && a.y < b.y + b.h) {
+                                    overlaps_next.push(createOverlap(a, b));
+                                }
+                            }
+                        }
+                    }
+                    if (overlaps_next.length > 0) {
+                        rect_data.push(overlaps_next);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            window.onload = function (ev) {
+                // Flag whether user is dragging a rectangle
+                var is_dragging = false;
+                // Mouse relative position to the dragged rectangle
+                var mouse_rel_pos = {};
+                // Array of array of overlap rectangles
+                // overlaps[i] contains overlaps of i+1 rectangle(s)
+                // i starts from 0
+                var rectangles = [];
+                // The index of the dragged rectangle
+                var drag_rect = -1;
+                var overlaps = [];
+                // Set the canvas to full size
+                var canvas = document.getElementById('my-canvas');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+
+                canvas.onmousedown = function (ev) {
+                    // Check if the mouse position is inside a rectangle.
+                    // If it is inside more than one rectangles then select the first rectangle.
+                    // The priority is based on the insertion to the rectangle container.
+                    for (var i = 0; i < rectangles[0].length; ++i) {
+                        var el = rectangles[0][i];
+                        if (ev.clientX >= el.x
+                                && ev.clientX < el.x + el.w
+                                && ev.clientY >= el.y
+                                && ev.clientY < el.y + el.h) {
+                            drag_rect = i;
+                            mouse_rel_pos = {
+                                x: ev.clientX - el.x,
+                                y: ev.clientY - el.y
+                            };
+                            is_dragging = true;
+                            return;
+                        }
+                    }
+                };
+
+                canvas.onmousemove = function (ev) {
+                    if (is_dragging === true) {
+                        // If user is dragging a rectangle, then move the rectangle
+                        rect = rectangles[0][drag_rect];
+                        rect.x = ev.clientX - mouse_rel_pos.x;
+                        rect.y = ev.clientY - mouse_rel_pos.y;
+                        // compute overlap rectangles, if any
+                        computeOverlaps(rectangles);
+                        // Redraw the canvas
+                        draw(rectangles);
+                    }
+                };
+
+                canvas.onmouseup = function (ev) {
+                    // User finished the dragging
+                    is_dragging = false;
+                };
+                // Create the rectangles
+                var container = [];
+                addRectangle(container, 50, 150, 200, 100, 255, 0, 0);
+                addRectangle(container, 400, 200, 100, 200, 0, 255, 0);
+                addRectangle(container, 300, 50, 200, 100, 0, 0, 255);
+                rectangles.push(container);
+                // 
+                computeOverlaps(rectangles);
+                // Initial drawing
+                draw(rectangles);
+            };
+        </script>
+    </head>
+    <body>
+        <canvas id="my-canvas">
+        </canvas>
+    </body>
+</html>
