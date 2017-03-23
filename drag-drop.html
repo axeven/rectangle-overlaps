@@ -1,0 +1,133 @@
+<html>
+    <head>
+        <style type="text/css">
+            html, body {
+                width:  100%;
+                height: 100%;
+                margin: 0px;
+                padding: 0px;
+            }
+        </style>
+        <script type="text/javascript">
+            // Add rectangle data to container array
+            function addRectangle(container, x, y, w, h, r, g, b) {
+                var id = container.length;
+                container.push({
+                    r: r,
+                    g: g,
+                    b: b,
+                    x: x,
+                    y: y,
+                    w: w,
+                    h: h,
+                    rectangleIds: [id]
+                });
+            }
+            // Repaint the canvas with white and draw the rectangles
+            function draw(rect_data, dragged_rect) {
+                var canvas = document.getElementById('my-canvas');
+                var ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#eeeeee';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Draw rectangles
+                for (var i = 0; i < rect_data.length; ++i) {
+                    rect_data.forEach(function (el) {
+                        ctx.fillStyle = 'rgb(' + el.r + ',' + el.g + ',' + el.b + ')';
+                        ctx.fillRect(el.x, el.y, el.w, el.h);
+                    });
+                }
+                if (dragged_rect !== 'undefined') {
+                    ctx.fillStyle = 'rgb(' + dragged_rect.r + ',' + dragged_rect.g + ',' + dragged_rect.b + ')';
+                    ctx.fillRect(dragged_rect.x, dragged_rect.y, dragged_rect.w, dragged_rect.h);
+                }
+            }
+
+            function isTouching(a, b) {
+                return a.x < b.x + b.w && b.x < a.x + a.w
+                        && a.y < b.y + b.h && b.y < a.y + a.h;
+            }
+
+            function isInside(a, b) {
+                return a.x >= b.x && a.x + a.w <= b.x + b.w
+                        && a.y >= b.y && a.y + a.h <= b.y + b.h;
+            }
+
+            window.onload = function (ev) {
+                // Mouse relative position to the dragged rectangle
+                var mouse_rel_pos = {};
+                // Array of rectangles. Bigger index is closer to user.
+                var rectangles = [];
+                // The dragged rectangle
+                var drag_rect = 'undefined';
+                // Set the canvas to full size
+                var canvas = document.getElementById('my-canvas');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+
+                canvas.onmousedown = function (ev) {
+                    // Check if the mouse position is inside a rectangle.
+                    // If it is inside more than one rectangles then select the closer one.
+                    for (var i = rectangles.length - 1; i >= 0; i--) {
+                        var el = rectangles[i];
+                        if (ev.clientX >= el.x
+                                && ev.clientX < el.x + el.w
+                                && ev.clientY >= el.y
+                                && ev.clientY < el.y + el.h) {
+                            drag_rect = el;
+                            mouse_rel_pos = {
+                                x: ev.clientX - el.x,
+                                y: ev.clientY - el.y
+                            };
+                            rectangles.splice(i, 1);
+                            return;
+                        }
+                    }
+                };
+
+                canvas.onmousemove = function (ev) {
+                    if (drag_rect !== 'undefined') {
+                        // If user is dragging a rectangle, then move the rectangle
+                        drag_rect.x = ev.clientX - mouse_rel_pos.x;
+                        drag_rect.y = ev.clientY - mouse_rel_pos.y;
+                        // Redraw the canvas
+                        draw(rectangles, drag_rect);
+                    }
+                };
+
+                canvas.onmouseup = function (ev) {
+                    // User finished the dragging
+                    for (var i = 0; i < rectangles.length; ++i) {
+                        // if the dragged rectangle is completely inside rect[i]
+                        // then apply the color of the dragged one to rect[i]
+                        if(isInside(drag_rect, rectangles[i])){
+                            rectangles[i].r = drag_rect.r;
+                            rectangles[i].g = drag_rect.g;
+                            rectangles[i].b = drag_rect.b;
+                        } else if (isTouching(drag_rect, rectangles[i])){
+                            // if it is only touching, then apply "half" of the color
+                            rectangles[i].r = Math.floor((rectangles[i].r + drag_rect.r) / 2);
+                            rectangles[i].g = Math.floor((rectangles[i].g + drag_rect.g) / 2);
+                            rectangles[i].b = Math.floor((rectangles[i].b + drag_rect.b) / 2);
+                        }
+                    }
+                    // put the dragged rectangle as the closest one to user
+                    rectangles.push(drag_rect);
+                    //
+                    drag_rect = 'undefined';
+                    draw(rectangles, drag_rect);
+                };
+                // Create the rectangles
+                addRectangle(rectangles, 50, 150, 200, 100, 255, 0, 0);
+                addRectangle(rectangles, 400, 200, 100, 200, 0, 255, 0);
+                addRectangle(rectangles, 300, 50, 200, 100, 0, 0, 255);
+                addRectangle(rectangles, 150, 300, 50, 50, 100, 50, 100);
+                // Initial drawing
+                draw(rectangles, drag_rect);
+            };
+        </script>
+    </head>
+    <body>
+        <canvas id="my-canvas">
+        </canvas>
+    </body>
+</html>
